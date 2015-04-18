@@ -1,0 +1,11 @@
+Dependencies:
+
+    Python Modules:
+    
+        James Davenport's full python cubehelix implementation: https://github.com/jradavenport/cubehelix
+        pynbody ( > v 0.30): https://github.com/pynbody/pynbody
+        matplotlib, numpy, (scipy?) etc...
+        
+    Other software:
+    
+        ffmpeg: https://www.ffmpeg.org/
