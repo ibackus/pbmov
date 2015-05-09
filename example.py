@@ -1,43 +1,76 @@
 # -*- coding: utf-8 -*-
 """
-An example script demonstrating the use of flyby
-
-Created on Mon Mar 30 22:33:28 2015
+Created on Tue Mar 31 21:35:23 2015
 
 @author: ibackus
 """
-import pynbody as pb
-SimArray = pb.array.SimArray
-
 import flyby
+import flyby_utils
 
-#set the sim path to the simulation you want to see
-sim_path = 'wengen_test_final.std'
-param_path = 'wengen_test_final.param'
-save_path = 'movie_lores.mp4'
+import numpy as np
+import pynbody
+SimArray = pynbody.array.SimArray
+from scipy.interpolate import interp1d
 
-# Load the simulation
-sim = pb.load(sim_path, paramname=param_path)
+import isaac
 
-# Frame rendering settings
-vmin=1e-6
-vmax=1e1
-width = '62 au'
-z_camera = 1000
+fname = 'data/wengen_test_final.std'
+paramname = 'data/wengen_test_final.param'
+savename = 'example.mp4'
 
-# perform a 180 degree rotation around x, then a 360 degree rotation around
-# y and z, then a 360 deg rotation around all 3
-rotations = [[180,0,0], [0,360,360], [360,360,360]]
-rot_frames = 100 # number of frames to render per rotation
-
-# Video settings
-res = 250
+target = np.array([ 8.70984,  9.2456 ,  0.     ])
+vmin = 1e-8
+vmax = 1e1
 fps = 25
-codec = "libx264"
-preset = "slow"
-quality = 18
+res = 720
+tmax = 15.
 
-# Render the movie for gas only!
+nt = int(tmax*fps)
+t = np.linspace(0, tmax, nt)
 
-im = flyby.rotation_movie(sim.gas, vmin, vmax, width, rotations, savename=save_path, rot_frames=rot_frames,\
-res=res,fps=fps,codec=codec,preset=preset,quality=quality, z_camera=z_camera)
+# ------------------------------------------
+# Set up camera positions
+# ------------------------------------------
+cam = []
+cam.append([0,0,100])
+cam.append([0,0,20])
+cam.append([5,5,5])
+cam.append([8,9,0])
+cam.append([8.5,9.1,0])
+cam.append([0,0,-100])
+cam = np.array(cam)
+t_cam = np.array([0,2,5,10,13,tmax])
+# Tell camera to slow down by certain of the camera spots
+camstop = np.array([0,0,0,1,1,0], dtype=bool)
+# could also do:
+#   camstop = np.array([3,4])
+
+# Now interpolate the camera locations
+cam_spl = flyby_utils.interpolate(t_cam, cam, camstop)
+cameras_all = cam_spl(t)
+# ------------------------------------------
+# Set up target positions
+# ------------------------------------------
+target = []
+target.append([0,0,0])
+target.append([ 8.70984,  9.2456 ,  0.     ])
+target.append([ 8.70984,  9.2456 ,  0.     ])
+target = np.array(target)
+# times for target positions
+t_target = np.array([0,t_cam[1], tmax])
+# now interpolate
+target_spl = flyby_utils.interpolate(t_target, target)
+targets_all = target_spl(t)
+# ------------------------------------------
+# Set up a basic, constant camera rotation
+# ------------------------------------------
+camera_rots = np.linspace(0, 2*np.pi, nt)
+
+# ------------------------------------------
+# now render movie!
+# ------------------------------------------
+f = pynbody.load(fname, paramname=paramname)
+isaac.snapshot_defaults(f)
+
+flyby.render_movie(f.g, cameras_all, targets_all, nt, vmin, vmax, camera_rots, \
+res, fps = fps, savename=savename)
