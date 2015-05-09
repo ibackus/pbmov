@@ -6,9 +6,94 @@ Created on Sat Mar 28 07:02:50 2015
 """
 
 import numpy as np
+import logging
 
 import pynbody as pb
 SimArray = pb.array.SimArray
+
+def pbverbosity(cmd=None):
+    """
+    Changes and returns pynbody verbosity.  Works for different versions
+    of pynbody.
+    
+    **ARGUMENTS**
+    
+    cmd
+        -If None (default) current verbosity level is returned, nothing is done
+        -If 'off', pynbody is silenced
+        -If 'on', pynbody verbosity is set on
+        -If something else, cmd is assumed to be a verbosity level
+        
+    **RETURNS**
+    
+    current_verbosity
+        pynbody verbosity level before any changes were made
+        
+    **EXAMPLES**
+    
+    *Toggle pynbody verbosity*
+    
+        current_verbosity = pbverbosity('off')
+        ...
+        do stuff
+        ...
+        pbverbosity(current_verbosity)
+    """
+    
+    # -----------------------------
+    # Get current verbosity level
+    # -----------------------------
+    if hasattr(pb, 'logger'):
+        # As of v0.30, pynbody uses python's logging to handle verbosity
+        logger = True
+        current_verbosity = pb.logger.getEffectiveLevel()
+        pb.logger.setLevel(logging.ERROR)
+        
+    else:
+        
+        # For pynbody version < 0.3, verbosity is handled in the config
+        logger = False
+        current_verbosity = pb.config['verbose']
+        
+    # -----------------------------
+    # Change verbosity
+    # -----------------------------
+    if cmd is None:
+        # Don't change verbosity.  just return the current verbosity
+        pass
+        
+    elif cmd == 'off':
+        # Toggle verbosity off
+        if logger:
+            
+            pb.logger.setLevel(logging.ERROR)
+            
+        else:
+            
+            pb.config['verbose'] = False
+        
+    elif cmd == 'on':
+        # Toggle verbosity on
+        if logger:
+            
+            pb.logger.setLevel(logging.DEBUG)
+        
+        else:
+            
+            pb.config['verbose'] = True
+        
+    else:
+        # Set verbosity to the verbosity level specified by cmd
+        if logger:
+            
+            pb.logger.setLevel(cmd)
+            
+        else:
+            
+            pb.config['verbose'] = cmd
+        
+    # Return the verbosity level before any changes were made
+    return current_verbosity
 
 def _interp_onestep(x,y,zero_slope=None):
     """
