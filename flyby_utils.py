@@ -10,11 +10,39 @@ import numpy as np
 import pynbody as pb
 SimArray = pb.array.SimArray
 
-
 def _interp_onestep(x,y,zero_slope=None):
+    """
+    Creates a spline interpolator for one step.  The interpolations are:
+    
+        - linear if zero_slope is None OR [False, False]
+        - quadratic if one of zero_slope is True
+        - cubic if both of zero_slope are True
+        
+    **ARGUMENTS**
+    
+    x : array like
+        2 points
+    y : array like
+        for 2 points.  Can be a 2D array
+        
+    **RETURNS**
+    
+    spline : function
+        A vectorized function returning the interpolated value of y.
+    """
     
     dx = float(x[1] - x[0])
     dy = y[1] - y[0]
+    
+    y0shape = np.shape(y[0])
+    
+    if len(y0shape) == 0:
+        
+        ydim = 1
+        
+    else:
+        
+        ydim = y0shape[0]
     
     if (zero_slope is None) or np.all(y[1]==y[0]) or (np.all(~zero_slope)):
         # Slope is not fixed to be zero.  Do a linear interpolation
@@ -23,7 +51,8 @@ def _interp_onestep(x,y,zero_slope=None):
         
         def f(xin):
             
-            return (xin - x[0])*a + b
+            output = (xin - x[0])*a + b
+            return output
             
     elif np.all(zero_slope):
         # Both slopes must be zero.  Do a cubic interpolation
@@ -56,11 +85,50 @@ def _interp_onestep(x,y,zero_slope=None):
     else:
         
         raise ValueError, 'Could not understand zero_slope'
+        
+    def g(xin):
+        """
+        A Single step interpolator function.  Evaluating at x gives the
+        interpolated value.
+        
+        Returns an array of shape (len(xin), y_dimension)
+        """
+        
+        if not hasattr(xin, '__iter__'):
+                
+            xin = [xin]
+        
+        npts = len(xin)
+        output = np.zeros([npts, ydim])
+        
+        for i in range(npts):
             
-    return f
+            output[i] = f(xin[i])
+            
+        return output
+        
+    return g
 
 def interpolate(x, y, zero_slope=None):
     """
+    Generates an interpolator for y evaluated at x.  zero_slope can be used
+    to make y change slowly around point x.  The interpolation type used between
+    x[i] and x[i+1] is as follows:
+    
+        - linear if zero_slope[i, i+1] = [False, False] (or if zero_slope=None)
+        - quadratic if one of zero_slope[i, i+1] is True
+        - cubic if zero_slope[i, i+1] = [True, True]
+        
+    **ARGUMENTS**
+    
+    x : array like
+        1D, length num_points
+    y : array like
+        1D, length num_points OR 2D, shape(num_points, y_dimension)
+        
+    **RETURNS**
+    
+    Interpolator function to interpolate y between the x data points.
     """
     npts = len(x)
     nspl = npts - 1
@@ -92,6 +160,10 @@ def interpolate(x, y, zero_slope=None):
         spl_list.append(spl)
         
     def spline(xpts):
+        """
+        Interpolator function.  Returns y interpolated at x.  x can be 
+        array like or a number.
+        """
         
         if np.ndim(xpts) == 0:
             xpts = np.array([xpts])
@@ -107,7 +179,10 @@ def interpolate(x, y, zero_slope=None):
         for i in range(nspl):
             
             mask = (ind==i)
-            y_out[mask] = spl_list[i](xpts[mask])
+            
+            if np.any(mask):
+                print 'Calling spline for {} points'.format(mask.sum())
+                y_out[mask] = spl_list[i](xpts[mask])
             
         return y_out
         
