@@ -22,7 +22,47 @@ cx_default = ch
 def render_movie(sim, cameras, targets, nt, vmin=None, vmax=None, camera_rot=0.0,\
  res=500, cmap=cx_default, fps=25, savename='movie.mp4', preview=None, nskip=0, **kwargs):
     """
-    Renders a movie
+    Renders a movie.
+    
+    **STATIC ARGUMENTS**
+    sim : snapshot
+        A pynbody snapshot
+    nt : int
+        Numer of frames
+    res : int
+        Frame resolution.  All frames are square (ie, resolution = res x res)
+    cmap : matplotlib colormap or str
+        Colormap to use
+    fps : int
+        Frames per second
+    savename : str
+        Filename to save movie to
+    preview : None or int
+        If int, then frame number preview is plotted in a window instead of
+        rendering the whole movie
+        If None (DEFAULT), movie is rendered
+    nskip : int
+        (buggy still) Number of frames to skip.  Can be used to render every
+        nth frame
+    **kwargs
+        Additional keyword arguments to pass to the pynbody renderer
+        (see pynbody.plot.sph.image)
+    
+    **ANIMATEABLE ARGUMENTS**
+    NOTE: All the animateable arguments can be passed as static if wanted.
+    e.g., if ONE camera position is passed, then the camera will be treated
+    as static.
+    IF a value is to be animated, it should be provided for every frame
+    
+    cameras : array
+        Camera x,y,z position(s).  shape (nt, 3) if animated
+    targets : array
+        Target x,y,z position(s).  shape (nt, 3) if animated
+    vmin, vmax : float or array
+        min/max values for color map
+    camera_rot : float or array
+        Rotation of the camera (in radians) around the axis connecting camera
+        and the target.
     """
     # Make multiples of animated values if needed.  This ensures the values
     # are all defined at every frame
@@ -72,6 +112,47 @@ def render_movie(sim, cameras, targets, nt, vmin=None, vmax=None, camera_rot=0.0
 def render_frame(sim, camera, target=None, pos0=None, vmin=None, vmax=None, camera_rot=0.0, \
 res=500, cmap=cx_default, preview=False, revert_sim_pos=True, **kwargs):
     """
+    Renders a frame of a movie and returns it as an RGB array.  Optionally,
+    if preview is True, it will plot the image instead of returning it.
+    
+    **ARGUMENTS**
+    
+    sim : snapshot
+        pynbody snapshot to render.  IF a family-level quantity is being plotted,
+        e.g. 'rho', then just that family should be given.  ie:
+            snapshot = pynbody.load('filename')
+            sim = snapshot.gas
+    camera : array
+        x,y,z position of the camera
+    target : array or NONE
+        x,y,z position of target.  If None, the origin is assumed
+    pos0 : array
+        Initial particle positions.  useful if the particle positions in 
+        sim were altered by a previously rendered frame
+    vmin, vmax : float
+        min/max values for color map
+    camera_rot : float
+        rotation of the camera around the axis connecting the camera and
+        the target (in radians)
+    res : int
+        Resolution (in pixels) for the square image.
+    cmap : str or matplotlib cmap
+        Colormap
+    preview : bool
+        If True, the image is plotted and nothing is returned
+        If False (default) the image is rendered and returned without plotting
+    revert_sim_pos : bool
+        If True (default) the particle positions in sim are reverted to their
+        original values.  Requires copying the particle positions
+        If False, the particle positions in the simulation will be changed
+    **kwargs
+        Additional keyword arguments to pass to pynbody.plot.sph.image
+        
+    **RETURNS**
+    
+    im : array
+        If preview=False, an RGB array of the image is returned.  Otherwise,
+        nothing is returned
     """
     if revert_sim_pos or preview:
         
@@ -167,90 +248,6 @@ def repeat_val(x, nt, single_val_dim=0):
         x = np.array(x_list)
     
     return x
-
-def camera_pass3(sim, cam0, target, vmin=None, vmax=None, camera_rot=0.0,nt=50,\
- b=1, res=500, fps=25, savename='movie.mp4'):
-    """
-    A simple implementation of having a camera pass by a target.  Not fully
-    functional or robust...just proof of concept
-    """
-    target_r = np.sqrt((target**2).sum())
-    cam_middle = target - b*(target/target_r)
-    cameras = np.zeros([nt, 3])
-    t = np.linspace(0,1,nt)
-    
-    for i in range(3):
-        
-        cameras[:,i] = (cam_middle[i] - cam0[i])*(2*t-1)**3 + cam_middle[i]
-        
-    camera_rots = np.linspace(0, camera_rot, nt)
-    
-    video_writer = ffmpeg_writer.FFMPEG_VideoWriter(savename, (res,res), fps)
-    pos0 = sim['pos'].copy()
-    
-    for i in range(nt):
-        
-        print '\n{} of {}\n'.format(i+1, nt)
-        width = pbmov_utils.frame_width(cameras[i], target)
-        pos = pbmov_utils.vsm_transform(pos0, cameras[i], target, camera_rots[i])
-        sim['pos'] = pos
-        d = np.sqrt( ((cameras[i] - target)**2).sum())
-        im = pb.plot.sph.image(sim, width=width, z_camera=d, noplot=True, resolution=res)
-        color_im = rgbify(im, vmin, vmax)
-        video_writer.write_frame(color_im)
-        
-    video_writer.close()
-    sim['pos'] = pos0
-
-def camera_pass2(sim, cameras, target, vmin=None, vmax=None, camera_rot=0.0,\
- res=500, fps=25, savename='movie.mp4', preview=None, nskip=0):
-    """
-    A simple implementation of having a camera pass by a target.  Not fully
-    functional or robust...just proof of concept
-    """
-    nt = len(cameras)
-    
-    camera_rots = np.linspace(0, camera_rot, nt)
-    pos0 = sim['pos'].copy()
-    
-    irange = range(nt)
-    
-    if nskip != 0:
-        
-        irange = irange[0::nskip]
-        fps = max(int(fps/float(nskip)+0.5), 1)
-    
-    if preview is None:
-        
-        video_writer = ffmpeg_writer.FFMPEG_VideoWriter(savename, (res,res), fps)
-        
-    else:
-        
-        irange = range(preview, preview+1)
-    
-    for i in irange:
-        
-        print '\n{} of {}\n'.format(i+1, nt)
-        width = pbmov_utils.frame_width(cameras[i], target)
-        pos = pbmov_utils.vsm_transform(pos0, cameras[i], target, camera_rots[i])
-        sim['pos'] = pos
-        d = np.sqrt( ((cameras[i] - target)**2).sum())
-        im = pb.plot.sph.image(sim, width=width, z_camera=d, noplot=True, resolution=res)
-        color_im = rgbify(im, vmin, vmax)
-        
-        if preview is None:
-            
-            video_writer.write_frame(color_im)
-            
-        else:
-            
-            plt.imshow(color_im)
-        
-    if preview is None:
-        
-        video_writer.close()
-        
-    sim['pos'] = pos0
     
 def rgbify(im, vmin=None, vmax=None, cmap=cx_default):
     """
