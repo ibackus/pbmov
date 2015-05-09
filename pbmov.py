@@ -1,19 +1,17 @@
-import time
 import logging
 
 from matplotlib.colors import LogNorm
 from matplotlib.cm import get_cmap
 import matplotlib.pyplot as plt
 import numpy as np
+
 import pynbody as pb
 SimArray = pb.array.SimArray
 import pynbody.plot.sph as sph
-from scipy.interpolate import interp1d
 
 import cubehelix #Jim Davenport's color schemes, better for science than default color schemes
-import isaac
 import ffmpeg_writer
-import flyby_utils
+import pbmov_utils
 
 # setup colormaps
 ch=cubehelix.cmap()
@@ -87,9 +85,9 @@ res=500, cmap=cx_default, preview=False, revert_sim_pos=True, **kwargs):
         
         target = np.zeros(3)
         
-    width = flyby_utils.frame_width(camera, target)
+    width = pbmov_utils.frame_width(camera, target)
     d = np.sqrt( ((camera - target)**2).sum())
-    pos = flyby_utils.vsm_transform(pos0, camera, target, camera_rot)
+    pos = pbmov_utils.vsm_transform(pos0, camera, target, camera_rot)
     sim['pos'] = pos
     
     if preview:
@@ -193,8 +191,8 @@ def camera_pass3(sim, cam0, target, vmin=None, vmax=None, camera_rot=0.0,nt=50,\
     for i in range(nt):
         
         print '\n{} of {}\n'.format(i+1, nt)
-        width = flyby_utils.frame_width(cameras[i], target)
-        pos = flyby_utils.vsm_transform(pos0, cameras[i], target, camera_rots[i])
+        width = pbmov_utils.frame_width(cameras[i], target)
+        pos = pbmov_utils.vsm_transform(pos0, cameras[i], target, camera_rots[i])
         sim['pos'] = pos
         d = np.sqrt( ((cameras[i] - target)**2).sum())
         im = pb.plot.sph.image(sim, width=width, z_camera=d, noplot=True, resolution=res)
@@ -233,8 +231,8 @@ def camera_pass2(sim, cameras, target, vmin=None, vmax=None, camera_rot=0.0,\
     for i in irange:
         
         print '\n{} of {}\n'.format(i+1, nt)
-        width = flyby_utils.frame_width(cameras[i], target)
-        pos = flyby_utils.vsm_transform(pos0, cameras[i], target, camera_rots[i])
+        width = pbmov_utils.frame_width(cameras[i], target)
+        pos = pbmov_utils.vsm_transform(pos0, cameras[i], target, camera_rots[i])
         sim['pos'] = pos
         d = np.sqrt( ((cameras[i] - target)**2).sum())
         im = pb.plot.sph.image(sim, width=width, z_camera=d, noplot=True, resolution=res)
