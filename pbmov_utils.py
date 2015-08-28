@@ -4,96 +4,13 @@ Created on Sat Mar 28 07:02:50 2015
 
 @author: ibackus
 """
-
 import numpy as np
 import logging
 
+from diskpy.utils import pbverbosity
+
 import pynbody as pb
 SimArray = pb.array.SimArray
-
-def pbverbosity(cmd=None):
-    """
-    Changes and returns pynbody verbosity.  Works for different versions
-    of pynbody.
-    
-    **ARGUMENTS**
-    
-    cmd
-        -If None (default) current verbosity level is returned, nothing is done
-        -If 'off', pynbody is silenced
-        -If 'on', pynbody verbosity is set on
-        -If something else, cmd is assumed to be a verbosity level
-        
-    **RETURNS**
-    
-    current_verbosity
-        pynbody verbosity level before any changes were made
-        
-    **EXAMPLES**
-    
-    *Toggle pynbody verbosity*
-    
-        current_verbosity = pbverbosity('off')
-        ...
-        do stuff
-        ...
-        pbverbosity(current_verbosity)
-    """
-    
-    # -----------------------------
-    # Get current verbosity level
-    # -----------------------------
-    if hasattr(pb, 'logger'):
-        # As of v0.30, pynbody uses python's logging to handle verbosity
-        logger = True
-        current_verbosity = pb.logger.getEffectiveLevel()
-        pb.logger.setLevel(logging.ERROR)
-        
-    else:
-        
-        # For pynbody version < 0.3, verbosity is handled in the config
-        logger = False
-        current_verbosity = pb.config['verbose']
-        
-    # -----------------------------
-    # Change verbosity
-    # -----------------------------
-    if cmd is None:
-        # Don't change verbosity.  just return the current verbosity
-        pass
-        
-    elif cmd == 'off':
-        # Toggle verbosity off
-        if logger:
-            
-            pb.logger.setLevel(logging.ERROR)
-            
-        else:
-            
-            pb.config['verbose'] = False
-        
-    elif cmd == 'on':
-        # Toggle verbosity on
-        if logger:
-            
-            pb.logger.setLevel(logging.DEBUG)
-        
-        else:
-            
-            pb.config['verbose'] = True
-        
-    else:
-        # Set verbosity to the verbosity level specified by cmd
-        if logger:
-            
-            pb.logger.setLevel(cmd)
-            
-        else:
-            
-            pb.config['verbose'] = cmd
-        
-    # Return the verbosity level before any changes were made
-    return current_verbosity
 
 def _interp_onestep(x,y,zero_slope=None):
     """
@@ -204,17 +121,20 @@ def interpolate(x, y, zero_slope=None):
         - quadratic if one of zero_slope[i, i+1] is True
         - cubic if zero_slope[i, i+1] = [True, True]
         
-    **ARGUMENTS**
+    Parameters
+    ----------
     
     x : array like
         1D, length num_points
     y : array like
         1D, length num_points OR 2D, shape(num_points, y_dimension)
         
-    **RETURNS**
+    Returns
+    -------
     
-    Interpolator function to interpolate y between the x data points.
-    """
+        Interpolator function to interpolate y between the x data points.
+    
+    """     
     npts = len(x)
     nspl = npts - 1
     if npts < 2:
@@ -266,12 +186,75 @@ def interpolate(x, y, zero_slope=None):
             mask = (ind==i)
             
             if np.any(mask):
-                print 'Calling spline for {} points'.format(mask.sum())
                 y_out[mask] = spl_list[i](xpts[mask])
             
         return y_out
         
     return spline
+    
+def interpKeyframes(keyframe, nt=None):
+    """
+    Generates an interpolator to interpolate keyframes (for a single key)
+    See pbmov.keyframes
+    
+    Parameters
+    ----------
+    
+    keyframe : dict
+        keyframe for a single key.  keyframes are stored as dictionaries.
+        keyframe[i] is [value, zero_slope] at frame i
+    nt : int
+        (optional) Number of time steps.  If None, taken to be the last
+        defined frame number
+        
+    Returns
+    -------
+    
+    interp : interpolator (see pbmov_utils.interpolate)
+        Interpolator, accessed by:
+        >>> val = interp(frameNumber)
+    """
+    # Check that keyframes are properly formatted
+    for frameNum in keyframe.keys():
+        
+        if not isinstance(frameNum, int):
+            
+            raise ValueError('Poorly formatted keyframe  '
+            'frame: {0}.  Frame must be int'.format(frameNum))
+            
+    frameNums = keyframe.keys()
+    frameNums.sort()
+    nKeyframes = len(frameNums)
+    
+    if nt is None:
+        
+        nt = frameNums[-1] + 1
+        
+    # Set-up endpoints
+    keyframe[0] = keyframe[frameNums[0]]
+    frameNums = keyframe.keys()
+    frameNums.sort()
+    keyframe[nt-1] = keyframe[frameNums[-1]]
+    frameNums = keyframe.keys()
+    frameNums.sort()
+    nKeyframes = len(frameNums)
+    
+    # Generate interpolator
+    x = np.array(frameNums)
+    y = []
+    zero_slope = []
+    
+    for i in frameNums:
+        
+        a = keyframe[i]
+        y.append(a[0])
+        zero_slope.append(a[1])
+        
+    y = np.array(y)
+    zero_slope = np.array(zero_slope)
+    interp = interpolate(x, y, zero_slope)
+    
+    return interp
 
 def perpendicular_vector(v):
     """

@@ -1,15 +1,18 @@
-import logging
+# -*- coding: utf-8 -*-
+"""
 
+@author: ibackus
+"""
+# External packages
 from matplotlib.colors import LogNorm
 from matplotlib.cm import get_cmap
-import matplotlib.pyplot as plt
 import numpy as np
-
 import pynbody as pb
 SimArray = pb.array.SimArray
-import pynbody.plot.sph as sph
+import os
 
-import cubehelix #Jim Davenport's color schemes, better for science than default color schemes
+# Internal modules
+import cubehelix
 import ffmpeg_writer
 import pbmov_utils
 
@@ -19,6 +22,221 @@ cx4 = cubehelix.cmap(reverse=False, start=0., rot=0.5)  #mostly reds
 cx3 = cubehelix.cmap(reverse=False, start=0.3, rot=-0.5)# mostly blues
 cx_default = ch
 
+# Directory of this file
+_dir = os.path.dirname(os.path.abspath(__file__))
+# Setup defaults file
+fDefaults = os.path.join(_dir, '.keyframerc.py')
+if not os.path.exists(fDefaults):
+    
+    fDefaults = os.path.join(_dir, 'defaults.py')
+
+class movieSettings():
+    
+    def __init__(self):
+        
+        self.defaults()
+        self.frames = {}
+        
+    def defaults(self, filename=None):
+        """
+        Sets up the default values for movie parameters
+        """
+        if filename is None:
+            
+            filename = fDefaults
+            
+        g = {}
+        execfile(filename, g)
+        params = g['params']
+        keyframes = g['keyframes']
+        # Save to self
+        self.params = params
+        self.keyframes = keyframes
+        
+    def makeFrames(self, key=None):
+        """
+        Generates the frames for key (or all keys) by interpolating the
+        keyFrames.  Frames are stored in self.frames[key]
+        
+        Parameters
+        ----------
+        
+        key : str
+            (optional) Key to generate.  If None, all keys are generated
+        """
+        
+        # If there are no arguments, loop through and make frames for alll
+        # keys
+        if key is None:
+            
+            for k in self.keyframes.keys():
+                
+                self.makeFrames(k)
+                
+            return
+        
+        # ---------------
+        # make frames
+        # ---------------
+        nt = self.params['nt']
+        # Get a copy of the keyframe value
+        keyframe = self.keyframes[key].copy()
+        # Check for Nones
+        for val in keyframe.values():
+            
+            if val[0] is None:
+                
+                # Make all values None.  There's no way to interpolate a None
+                self.frames[key] = np.array([None]*nt)
+                return
+                
+        # Generate interpolator
+        interp = pbmov_utils.interpKeyframes(keyframe, nt)        
+        # Evaluate interpolator
+        self.frames[key] = interp(np.arange(nt))
+        
+        return
+        
+    def getFrame(self, frame):
+        """
+        Retrieves the key, val pairs at a given frame.  Must run
+        self.makeFrames() first
+        
+        Parameters
+        ----------
+        
+        frame : int
+            Frame number
+        
+        Returns
+        -------
+        
+        frameDict : dict
+            Dictionary containing all the key, val pairs at frame
+        """
+        
+        if not hasattr(self, 'frames'):
+            
+            raise RuntimeError, "Must run self.makeFrames() first"
+            
+        frameDict = {}
+        for key in self.keyframes.keys():
+            
+            frameDict[key] = self.frames[key][frame]
+            
+        return frameDict
+        
+    
+    def addKeyframes(self, key, frames, vals, zero_slope=False):
+        """
+        Adds keyframe(s), specified by the key, frame number(s), and value(s)
+        
+        This is a convenience package.  Frames can be added without it:
+        
+        >>> s = movieSettings()
+        >>> s['newkey'] = {}
+        >>> s['newkey'][10] = [value, bool]
+        
+        Parameters
+        ----------
+        
+        key : str
+            key (parameter) that the keyframe controls
+        frames : int or list of ints
+            The frame number (numbers).  If a list, vals should be a list of
+            values
+        vals : obj or list of obj
+            The value(s) at each frame.  If frames is a list, should be a list
+            of the same length
+        zero_slope : bool or list of bools
+            (see pbmov_utils.interpolate) A flag which tells whether the value
+            specified by key should change slowly around the current frame
+        """
+        
+        # Turn into lists
+        if not hasattr(frames, '__iter__'):
+            
+            frames = [frames]
+            vals = [vals]
+        
+        nFrames = len(frames)
+        if isinstance(zero_slope, bool):
+            
+            zero_slope = [zero_slope] * nFrames
+            
+        if key not in self.keyframes:
+            
+            self.keyframes[key] = {}
+            
+        for i in range(nFrames):
+            
+            self.keyframes[key][frames[i]] = [vals[i], zero_slope[i]]
+        
+    def delKeyframes(self, key, frames):
+        """
+        Deletes keyframe(s) from self, specified by key, frame.  Nothing is
+        done if the keyframe is not present.
+        
+        Parameters
+        ----------
+        
+        key : str
+            Key to delete, e.g. 'cam' or 'target'
+        frame : int or list of ints
+            keyframe number(s) to delete
+        """
+        if not hasattr(frames, '__iter__'):
+            # Assume frames is an int, make it a list
+            frames = [frames]
+            
+        # Loop through all frames
+        for frame in frames:
+            
+            try:
+                # Delete the keyframe
+                del self.keyframes[key][frame]
+            except KeyError:
+                # Assume the keyframe is not present
+                pass
+        
+        return
+            
+    def addKeyframe(self, key, frames, vals, zero_slope=False):
+        """
+        Adds keyframe(s), specified by the key, frame number(s), and value(s)
+        
+        Parameters
+        ----------
+        
+        key : str
+            key (parameter) that the keyframe controls
+        frames : int or list of ints
+            The frame number (numbers)
+        """
+        
+        # Turn into lists
+        if not hasattr(frames, '__iter__'):
+            
+            frames = [frames]
+            vals = [vals]
+        
+        nFrames = len(frames)
+        if isinstance(zero_slope, bool):
+            
+            zero_slope = [zero_slope] * nFrames
+        
+        # Update the list of parameters
+        self._addParam(key)
+        
+        for i in range(nFrames):
+            
+            # Delete the keyframe at the current frame number (if it exists)
+            self.delKeyframe(key, frames[i])
+            # Append the current frame to frameList
+            self.frameList.append(key, frames[i], vals[i], zero_slope)
+            
+        return
+        
 def render_movie(sim, cameras, targets, nt, vmin=None, vmax=None, camera_rot=0.0,\
  res=500, cmap=cx_default, fps=25, savename='movie.mp4', preview=None, nskip=0, **kwargs):
     """

@@ -4,13 +4,13 @@ Created on Tue Mar 31 21:35:23 2015
 
 @author: ibackus
 """
-import flyby
-import flyby_utils
+import pbmov
+import pbmov_utils
 
 import numpy as np
 import pynbody
 SimArray = pynbody.array.SimArray
-from scipy.interpolate import interp1d
+#from scipy.interpolate import interp1d
 
 import isaac
 
@@ -23,7 +23,7 @@ vmin = 1e-8
 vmax = 1e1
 fps = 25
 res = 720
-tmax = 15.
+tmax = 18
 
 nt = int(tmax*fps)
 t = np.linspace(0, tmax, nt)
@@ -46,7 +46,7 @@ camstop = np.array([0,0,0,1,1,0], dtype=bool)
 #   camstop = np.array([3,4])
 
 # Now interpolate the camera locations
-cam_spl = flyby_utils.interpolate(t_cam, cam, camstop)
+cam_spl = pbmov_utils.interpolate(t_cam, cam, camstop)
 cameras_all = cam_spl(t)
 # ------------------------------------------
 # Set up target positions
@@ -59,7 +59,7 @@ target = np.array(target)
 # times for target positions
 t_target = np.array([0,t_cam[1], tmax])
 # now interpolate
-target_spl = flyby_utils.interpolate(t_target, target)
+target_spl = pbmov_utils.interpolate(t_target, target)
 targets_all = target_spl(t)
 # ------------------------------------------
 # Set up a basic, constant camera rotation
@@ -72,5 +72,5 @@ camera_rots = np.linspace(0, 2*np.pi, nt)
 f = pynbody.load(fname, paramname=paramname)
 isaac.snapshot_defaults(f)
 
-flyby.render_movie(f.g, cameras_all, targets_all, nt, vmin, vmax, camera_rots, \
+pbmov.render_movie(f.g, cameras_all, targets_all, nt, vmin, vmax, camera_rots, \
 res, fps = fps, savename=savename)
