@@ -12,6 +12,37 @@ from diskpy.utils import pbverbosity
 import pynbody as pb
 SimArray = pb.array.SimArray
 
+def pbload(filename, paramname=None):
+    """
+    Loads a snapshot using pynbody.  Can load a single species by appending
+    ::gas, ::star, or ::dm to the filename
+    
+    Parameters
+    ----------
+    
+    filename : str
+        Filename to load
+    paramname : str
+        (optional) .param file to use
+    
+    Returns
+    -------
+    
+    sim : snapshot
+        A pynbody snapshot
+    """
+    if '::' in filename:
+        
+        filename, species = filename.split('::')
+        sim = pb.load(filename, paramname=paramname)
+        sim = getattr(sim, species)
+        
+    else:
+        
+        sim = pb.load(filename, paramname=paramname)
+        
+    return sim
+
 def _interp_onestep(x,y,zero_slope=None):
     """
     Creates a spline interpolator for one step.  The interpolations are:
