@@ -129,9 +129,11 @@ class movieSettings():
         execfile(filename, g)
         params = g['params']
         keyframes = g['keyframes']
+        logvalues = g['logvalues']
         # Save to self
         self.params = params
         self.keyframes = keyframes
+        self._logvalues = logvalues
         
     def makeFrames(self, key=None):
         """
@@ -171,7 +173,8 @@ class movieSettings():
                 return
                 
         # Generate interpolator
-        interp = pbmov_utils.interpKeyframes(keyframe, nt)        
+        log = key in self._logvalues
+        interp = pbmov_utils.interpKeyframes(keyframe, nt, log)      
         # Evaluate interpolator
         self.frames[key] = interp(np.arange(nt))
         

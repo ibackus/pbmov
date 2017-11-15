@@ -142,7 +142,7 @@ def _interp_onestep(x,y,zero_slope=None):
         
     return g
 
-def interpolate(x, y, zero_slope=None):
+def interpolate(x, y, zero_slope=None, log=False):
     """
     Generates an interpolator for y evaluated at x.  zero_slope can be used
     to make y change slowly around point x.  The interpolation type used between
@@ -159,6 +159,9 @@ def interpolate(x, y, zero_slope=None):
         1D, length num_points
     y : array like
         1D, length num_points OR 2D, shape(num_points, y_dimension)
+    zero_slope : see above
+    log : bool
+        Interpolate in log space if True
         
     Returns
     -------
@@ -173,6 +176,9 @@ def interpolate(x, y, zero_slope=None):
         raise ValueError, 'Need at least 2 points to interpolate'
         
     yshape = list(y.shape)
+    
+    if log:
+        y = np.log(y)
     
     # set up the zero_slopes
     if zero_slope is None:
@@ -219,11 +225,17 @@ def interpolate(x, y, zero_slope=None):
             if np.any(mask):
                 y_out[mask] = spl_list[i](xpts[mask])
             
-        return y_out
+        if log:
+            
+            return np.exp(y_out)
+            
+        else:
+        
+            return y_out
         
     return spline
     
-def interpKeyframes(keyframe, nt=None):
+def interpKeyframes(keyframe, nt=None, log=False):
     """
     Generates an interpolator to interpolate keyframes (for a single key)
     See pbmov.keyframes
@@ -283,7 +295,7 @@ def interpKeyframes(keyframe, nt=None):
         
     y = np.array(y)
     zero_slope = np.array(zero_slope)
-    interp = interpolate(x, y, zero_slope)
+    interp = interpolate(x, y, zero_slope, log)
     
     return interp
 

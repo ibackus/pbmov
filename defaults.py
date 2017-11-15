@@ -25,11 +25,12 @@ params['pbkwargs'] = None
 
 # Animateable values
 keyframes = {}
-keyframes['cam'] = {0: [[0,0,100], False], 
-                    10: [[0, 100, 0], True], 
-                    19: [[0, 0, -100], False]}
+keyframes['cam'] = {0: [[0,0,100], False]}
 keyframes['target'] = {0: [[0,0,0], False]}
 keyframes['simRot'] = {0: [[1, 0, 0], False]}
 keyframes['vmin'] = {0: [None, False]}
 keyframes['vmax'] ={0:  [None, False]}
 keyframes['camOrient'] = {0: [0.0, False]}
+
+# Values to interpolate logarithmically
+logvalues = ['vmin', 'vmax']

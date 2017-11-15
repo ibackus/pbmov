@@ -23,11 +23,12 @@ import pbmov
 from render import renderFrame
 from movieSettings import movieSettings
 
-class movie():
+class Movie():
     """
+    mov = Movie(sim, paramname=None, settings=None, renderer=renderFrame)
     
-    """
-    
+    Make a movie instance for creating pretty movies of N-Body simulations.
+    """    
     def __init__(self, sim, paramname=None, settings=None, renderer=renderFrame):
         
         # Setup the simulation to use
@@ -37,8 +38,8 @@ class movie():
             
         except IOError:
             
-            print 'Could not find snapshot {0}.  Add a snapshot for rendering \
-with self.setSim'.format(sim)
+            print 'Could not find snapshot {0}.  Add a snapshot for rendering' \
+            'with self.setSim'.format(sim)
         # Define the renderer (for rendering frames)
         self._renderer = renderer
         
