@@ -173,12 +173,27 @@ class movieSettings():
                 return
                 
         # Generate interpolator
-        log = key in self._logvalues
+        log = self.islogval(key)
         interp = pbmov_utils.interpKeyframes(keyframe, nt, log)      
         # Evaluate interpolator
         self.frames[key] = interp(np.arange(nt))
         
         return
+    
+    def islogval(self, key):
+        """
+        Check to see if a key is expected to be a logarithmic value
+        """
+        default_log_keys = self._logvalues
+        # Default log (True or False)
+        log = (key in default_log_keys)
+        
+        if key in ('vmin', 'vmax'):
+            # Check if we are rendering using logarithmic color coding
+            # Default to previous value of 'log' not set in pynbody args
+            log = self.params['pbkwargs'].get('log', log)
+            
+        return log
         
     def getFrame(self, frame):
         """

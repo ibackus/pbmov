@@ -5,7 +5,7 @@ Created on Fri Aug 28 09:54:19 2015
 @author: ibackus
 """
 # External imports
-from matplotlib.colors import LogNorm
+from matplotlib.colors import LogNorm, Normalize
 from matplotlib.cm import get_cmap
 import numpy as np
 import pynbody as pb
@@ -116,10 +116,11 @@ def renderFrame(frameSettings, params, sim, pos0=None, preview=False):
         im = pb.plot.sph.image(sim.g, width=width, z_camera=d, noplot=True, \
         resolution=res, **kwargs)
         # Now make a color, RGB image
-        color_im = rgbify(im, vmin, vmax, cmap)
+        log = kwargs.get('log', True)
+        color_im = rgbify(im, vmin, vmax, cmap, log)
         return color_im
         
-def rgbify(im, vmin=None, vmax=None, cmap=cx_default):
+def rgbify(im, vmin=None, vmax=None, cmap=cx_default, log=True):
     """
     Converts an image made by pynbody.plot.sph.image to an RGB array of ints,
     dtype uint8.  A logarithmic image will be produced
@@ -167,8 +168,15 @@ def rgbify(im, vmin=None, vmax=None, cmap=cx_default):
     im[np.isnan(im)] = vmin
     
     # Run a log normalization
-    a = LogNorm(vmin=vmin, vmax=vmax)
-    im = a(im)
+    if log:
+        a = LogNorm(vmin=vmin, vmax=vmax)
+    else:
+        a = Normalize(vmin=vmin, vmax=vmax)
+    try:
+        im = a(im)
+    except ValueError:
+        print vmin, vmax
+        raise
     
     # Apply color map
     color_im = cmap(im)
