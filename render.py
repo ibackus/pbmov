@@ -115,6 +115,8 @@ def renderFrame(frameSettings, params, sim, pos0=None, preview=False):
         # Render image in pynbody
         im = pb.plot.sph.image(sim.g, width=width, z_camera=d, noplot=True, \
         resolution=res, **kwargs)
+        # Flip along y axis
+        im = np.flipud(im)
         # Now make a color, RGB image
         log = kwargs.get('log', True)
         color_im = rgbify(im, vmin, vmax, cmap, log)

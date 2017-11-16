@@ -11,7 +11,7 @@ import cPickle as pickle
 from warnings import warn
 
 # Internal imports
-import pbmov_utils
+from pbmov import pbmov_utils
 
 # Setup defaults file
 _dir = os.path.dirname(os.path.abspath(__file__))
